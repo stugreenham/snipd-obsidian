@@ -10,10 +10,6 @@ export interface SnipdPluginSettings {
   latestSyncedSnipUpdateTs: string | null;
   fileHashMap: { [filePath: string]: string };
   appendOnlyFiles: { [filePath: string]: boolean };
-  baseFileHashes: { [filePath: string]: string };
-  baseFileManualOverrides: { [filePath: string]: boolean };
-  lastBaseFileSyncToken: string | null;
-  baseFileDefaultOpenPath: string | null;
   last_updated_after: string | null;
   current_export_updated_after: string | null;
   current_export_batch_index: number;
@@ -82,10 +78,6 @@ export const DEFAULT_SETTINGS: SnipdPluginSettings = {
   latestSyncedSnipUpdateTs: null,
   fileHashMap: {},
   appendOnlyFiles: {},
-  baseFileHashes: {},
-  baseFileManualOverrides: {},
-  lastBaseFileSyncToken: null,
-  baseFileDefaultOpenPath: null,
   last_updated_after: null,
   current_export_updated_after: null,
   current_export_batch_index: 0,
@@ -138,8 +130,4 @@ export interface EpisodeBatch {
 export interface FetchExportMetadataResponse {
   episode_batch_count: number;
   episode_batches: EpisodeBatch[];
-}
-
-export interface BaseFileMetadata {
-  defaultOpenPath: string;
 }

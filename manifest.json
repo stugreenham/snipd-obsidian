@@ -1,10 +1,10 @@
 {
-  "id": "snipd-official",
-  "name": "Snipd Official",
+  "id": "snipd-fork",
+  "name": "Snipd (fork)",
   "version": "1.2.21",
   "minAppVersion": "1.2.3",
-  "description": "Official Snipd integration. Sync your podcast highlights (snips) to your vault with transcript, notes, ai summary and metadata.",
-  "author": "Snipd",
-  "authorUrl": "https://snipd.com",
+  "description": "Personal fork of the Snipd Obsidian plugin with custom episode formatting.",
+  "author": "Stu Greenham",
+  "authorUrl": "https://github.com/stugreenham/snipd-obsidian",
   "isDesktopOnly": false
 }

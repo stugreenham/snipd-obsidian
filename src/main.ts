@@ -4,22 +4,20 @@ import {
   normalizePath,
   Notice,
   Plugin,
-  TFile,
   requestUrl
 } from 'obsidian';
 // @ts-ignore
 import * as zip from "@zip.js/zip.js";
 // @ts-ignore
 import { Md5 } from "ts-md5";
-import { 
-  SnipdPluginSettings, 
+import {
+  SnipdPluginSettings,
   DEFAULT_SETTINGS,
   DEFAULT_EPISODE_TEMPLATE,
   DEFAULT_SNIP_TEMPLATE,
   MetadataJson,
   EpisodeSnipMetadata,
   FetchExportMetadataResponse,
-  BaseFileMetadata
 } from './types';
 
 function isValidAdditionalProperties(
@@ -198,10 +196,6 @@ export default class SnipdPlugin extends Plugin {
     debugLog('Snipd plugin: clearing sync metadata...');
     this.settings.fileHashMap = {};
     this.settings.appendOnlyFiles = {};
-    this.settings.baseFileHashes = {};
-    this.settings.baseFileManualOverrides = {};
-    this.settings.lastBaseFileSyncToken = null;
-    this.settings.baseFileDefaultOpenPath = null;
     this.settings.last_updated_after = null;
     this.settings.current_export_updated_after = null;
     this.settings.current_export_batch_index = 0;
@@ -380,13 +374,10 @@ export default class SnipdPlugin extends Plugin {
 
       debugLog(`Snipd plugin: fetched metadata with ${metadata.episode_batch_count} batches`);
       
-      if (metadata.episode_batch_count > 0 || !this.settings.baseFileDefaultOpenPath) {
-        if (metadata.episode_batch_count > 0) {
-          this.setStatusBarPersistentMessage(`Syncing ${metadata.episode_batch_count} batch${metadata.episode_batch_count > 1 ? 'es' : ''}...`);
-        }
-        await this.fetchAndSaveBaseFile(this.settings.snipdDir);
+      if (metadata.episode_batch_count > 0) {
+        this.setStatusBarPersistentMessage(`Syncing ${metadata.episode_batch_count} batch${metadata.episode_batch_count > 1 ? 'es' : ''}...`);
       }
-      
+
       return metadata;
     } else {
       debugLog("Snipd plugin: bad response in syncSnipd: ", response);
@@ -769,9 +760,7 @@ export default class SnipdPlugin extends Plugin {
         
         const originalSnipdDir = this.settings.snipdDir;
         this.settings.snipdDir = testDir;
-        
-        await this.fetchAndSaveBaseFileForTest(testDir);
-        
+
         const stats = await this.processZipExport(blob);
         
         
@@ -988,252 +977,6 @@ export default class SnipdPlugin extends Plugin {
     }
   }
 
-  async fetchAndSaveBaseFile(folderPath: string): Promise<void> {
-    this.settings.baseFileManualOverrides = this.settings.baseFileManualOverrides || {};
-    const manualOverrides = this.settings.baseFileManualOverrides;
-    const existingHashes = { ...(this.settings.baseFileHashes || {}) };
-    let zipReader: zip.ZipReader<zip.BlobReader> | null = null;
-    let updatedFileCount = 0;
-    let removedFileCount = 0;
-    let baseFileMetadata: BaseFileMetadata | null = null;
-    const filesInZip = new Set<string>();
-    try {
-      debugLog('Snipd plugin: fetching base file...');
-      
-      const requestOptions: {
-        url: string;
-        method: string;
-        headers: Record<string, string>;
-        body?: string;
-      } = {
-        url: `${API_BASE_URL}/obsidian/export-base-file`,
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.settings.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      };
-
-      const additionalProps = this.settings.additionalProperties;
-      if (isValidAdditionalProperties(additionalProps)) {
-        requestOptions.body = JSON.stringify({
-          additional_properties: additionalProps.map((prop) => ({
-            name: prop.name.trim(),
-            template: prop.template.trim(),
-            ...(prop.displayName?.trim() ? { displayName: prop.displayName.trim() } : {}),
-          })),
-        });
-      }
-
-      const response = await requestUrl(requestOptions);
-
-      if (response.status < 200 || response.status >= 300) {
-        debugLog("Snipd plugin: bad response for base file: ", response);
-        const errorMsg = this.formatApiErrorMessage(null, response, "Base file sync");
-        debugLog(`Snipd plugin: ${errorMsg}`);
-        return;
-      }
-
-      const arrayBuffer = response.arrayBuffer;
-      const blob = new Blob([arrayBuffer]);
-      const blobReader = new zip.BlobReader(blob);
-      zipReader = new zip.ZipReader(blobReader);
-      const entries = await zipReader.getEntries();
-
-      for (const entry of entries) {
-        const zipEntry: zip.Entry = entry;
-        if (zipEntry.directory) {
-          continue;
-        }
-        
-        // @ts-ignore
-         
-        const fileContent = await zipEntry.getData(new zip.TextWriter());
-        
-        if (zipEntry.filename === 'metadata.json') {
-          baseFileMetadata = JSON.parse(fileContent) as BaseFileMetadata;
-          const metadataPath = normalizePath(`${folderPath}/metadata.json`);
-          await createDirForFile(metadataPath, this.app.vault.adapter);
-          await this.app.vault.adapter.write(metadataPath, fileContent);
-          debugLog(`Snipd plugin: saved base file metadata to ${metadataPath}`);
-          continue;
-        }
-        
-        let relativePath = zipEntry.filename;
-        if (relativePath.startsWith('Files/')) {
-          relativePath = relativePath.substring(6);
-        }
-        const baseFilePath = normalizePath(`${folderPath}/${relativePath}`);
-        filesInZip.add(baseFilePath);
-        
-        if (manualOverrides[baseFilePath]) {
-          debugLog(`Snipd plugin: skipping base file ${baseFilePath} - manual override detected.`);
-          continue;
-        }
-
-        const storedHash = existingHashes[baseFilePath];
-        const fileExists = await this.app.vault.adapter.exists(baseFilePath);
-        
-        if (fileExists && storedHash) {
-          try {
-            const existingContent = await this.app.vault.adapter.read(baseFilePath);
-            const currentHash = Md5.hashStr(existingContent).toString();
-            
-            if (currentHash !== storedHash) {
-              manualOverrides[baseFilePath] = true;
-              debugLog(`Snipd plugin: base file ${baseFilePath} hash mismatch - marking as manually overridden.`);
-              continue;
-            }
-          } catch (error) {
-            manualOverrides[baseFilePath] = true;
-            debugLog(`Snipd plugin: failed to validate base file ${baseFilePath} - marking as manually overridden.`);
-            debugLog('Snipd plugin: failed to validate base file integrity:', error);
-            continue;
-          }
-        }
-
-        await createDirForFile(baseFilePath, this.app.vault.adapter);
-        await this.app.vault.adapter.write(baseFilePath, fileContent);
-
-        existingHashes[baseFilePath] = Md5.hashStr(fileContent).toString();
-        
-        debugLog(`Snipd plugin: saved base file to ${baseFilePath}`);
-        updatedFileCount++;
-      }
-
-      for (const filePath in existingHashes) {
-        if (!filesInZip.has(filePath)) {
-          if (manualOverrides[filePath]) {
-            delete manualOverrides[filePath];
-            debugLog(`Snipd plugin: removed manual override for ${filePath} - file no longer in zip.`);
-          }
-          delete existingHashes[filePath];
-          debugLog(`Snipd plugin: removed hash for ${filePath} - file no longer in zip.`);
-          removedFileCount++;
-        }
-      }
-    } catch (e) {
-      debugLog("Snipd plugin: error fetching base file: ", e);
-      const errorResponse = this.extractResponseFromError(e);
-      const errorMsg = this.formatApiErrorMessage(e, errorResponse, "Base file sync");
-      debugLog(`Snipd plugin: ${errorMsg}`);
-      this.notice(errorMsg, true, 4, false);
-    } finally {
-      if (zipReader) {
-        try {
-          await zipReader.close();
-        } catch (closeError) {
-          debugLog('Snipd plugin: failed to close base file zip reader:', closeError);
-        }
-      }
-    }
-
-    if (updatedFileCount > 0 || removedFileCount > 0 || baseFileMetadata) {
-      this.settings.baseFileHashes = existingHashes;
-      this.settings.baseFileManualOverrides = manualOverrides;
-      this.settings.lastBaseFileSyncToken = this.settings.current_export_updated_after ?? null;
-      if (baseFileMetadata) {
-        this.settings.baseFileDefaultOpenPath = baseFileMetadata.defaultOpenPath;
-      }
-      await this.saveSettings();
-      debugLog(`Snipd plugin: base file sync completed - ${updatedFileCount} files updated, ${removedFileCount} removed`);
-    } else {
-      debugLog('Snipd plugin: base file sync completed but no files were updated');
-    }
-  }
-
-  async fetchAndSaveBaseFileForTest(folderPath: string): Promise<void> {
-    let zipReader: zip.ZipReader<zip.BlobReader> | null = null;
-    try {
-      debugLog('Snipd plugin: fetching base file for test sync...');
-      
-      const requestOptions: {
-        url: string;
-        method: string;
-        headers: Record<string, string>;
-        body?: string;
-      } = {
-        url: `${API_BASE_URL}/obsidian/export-base-file`,
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.settings.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      };
-
-      const additionalProps = this.settings.additionalProperties;
-      if (isValidAdditionalProperties(additionalProps)) {
-        requestOptions.body = JSON.stringify({
-          additional_properties: additionalProps.map((prop) => ({
-            name: prop.name.trim(),
-            template: prop.template.trim(),
-            ...(prop.displayName?.trim() ? { displayName: prop.displayName.trim() } : {}),
-          })),
-        });
-      }
-
-      const response = await requestUrl(requestOptions);
-
-      if (response.status < 200 || response.status >= 300) {
-        debugLog("Snipd plugin: bad response for base file in test sync: ", response);
-        const errorMsg = this.formatApiErrorMessage(null, response, "Base file sync (test)");
-        debugLog(`Snipd plugin: ${errorMsg}`);
-        return;
-      }
-
-      const arrayBuffer = response.arrayBuffer;
-      const blob = new Blob([arrayBuffer]);
-      const blobReader = new zip.BlobReader(blob);
-      zipReader = new zip.ZipReader(blobReader);
-      const entries = await zipReader.getEntries();
-
-      for (const entry of entries) {
-        const zipEntry: zip.Entry = entry;
-        if (zipEntry.directory) {
-          continue;
-        }
-        
-        // @ts-ignore
-         
-        const fileContent = await zipEntry.getData(new zip.TextWriter());
-        
-        if (zipEntry.filename === 'metadata.json') {
-          const metadataPath = normalizePath(`${folderPath}/metadata.json`);
-          await createDirForFile(metadataPath, this.app.vault.adapter);
-          await this.app.vault.adapter.write(metadataPath, fileContent);
-          debugLog(`Snipd plugin: saved base file metadata to ${metadataPath} (test sync - always overwrite)`);
-          continue;
-        }
-        
-        let relativePath = zipEntry.filename;
-        if (relativePath.startsWith('Files/')) {
-          relativePath = relativePath.substring(6);
-        }
-        const baseFilePath = normalizePath(`${folderPath}/${relativePath}`);
-        
-        await createDirForFile(baseFilePath, this.app.vault.adapter);
-        await this.app.vault.adapter.write(baseFilePath, fileContent);
-        
-        debugLog(`Snipd plugin: saved base file to ${baseFilePath} (test sync - always overwrite)`);
-      }
-    } catch (e) {
-      debugLog("Snipd plugin: error fetching base file for test sync: ", e);
-      const errorResponse = this.extractResponseFromError(e);
-      const errorMsg = this.formatApiErrorMessage(e, errorResponse, "Base file sync (test)");
-      debugLog(`Snipd plugin: ${errorMsg}`);
-    } finally {
-      if (zipReader) {
-        try {
-          await zipReader.close();
-        } catch (closeError) {
-          debugLog('Snipd plugin: failed to close base file zip reader in test sync:', closeError);
-        }
-      }
-    }
-  }
-
   configureSchedule() {
     const minutes = parseInt(this.settings.frequency);
     const milliseconds = minutes * 60 * 1000;
@@ -1251,51 +994,10 @@ export default class SnipdPlugin extends Plugin {
     this.registerInterval(this.scheduleInterval);
   }
 
-  async openBaseFile() {
-    let defaultOpenPath = this.settings.baseFileDefaultOpenPath;
-    
-    if (!defaultOpenPath) {
-      const metadataPath = normalizePath(`${this.settings.snipdDir}/metadata.json`);
-      const metadataExists = await this.app.vault.adapter.exists(metadataPath);
-      
-      if (metadataExists) {
-        try {
-          const metadataContent = await this.app.vault.adapter.read(metadataPath);
-          const metadata = JSON.parse(metadataContent) as BaseFileMetadata;
-          defaultOpenPath = metadata.defaultOpenPath;
-          this.settings.baseFileDefaultOpenPath = defaultOpenPath;
-          await this.saveSettings();
-        } catch (error) {
-          debugLog('Snipd plugin: failed to read base file metadata:', error);
-        }
-      }
-      
-      if (!defaultOpenPath) {
-        this.notice('Base file not found, fetching...', true);
-        await this.fetchAndSaveBaseFile(this.settings.snipdDir);
-        defaultOpenPath = this.settings.baseFileDefaultOpenPath;
-      }
-    }
-    
-    if (!defaultOpenPath) {
-      defaultOpenPath = 'Base/Snipd.base';
-    }
-    
-    const baseFilePath = normalizePath(`${this.settings.snipdDir}/${defaultOpenPath}`);
-    let file = this.app.vault.getAbstractFileByPath(baseFilePath);
-    
-    if (!file || !(file instanceof TFile)) {
-      this.notice(`Base file not found: ${baseFilePath}`, true);
-      return;
-    }
-
-    await this.app.workspace.openLinkText(baseFilePath, '', true);
-  }
-
   async onload() {
     addIcon('snipd', `<path d="M30.458 18.725c-14.395 13.692-14.395 35.75 0 49.446L16.667 81.279c14.57 13.85 38.308 13.85 52.875 0 14.391-13.691 14.391-35.75 0-49.437l13.791-13.117c-14.57-13.854-38.308-13.854-52.875 0" stroke="#B2B2B2FF" stroke-width="8.33333" fill="none"/>`);
-    this.addRibbonIcon('snipd', 'Open Snipd base', () => {
-      void this.openBaseFile();
+    this.addRibbonIcon('snipd', 'Sync Snipd', () => {
+      void this.syncSnipd();
     });
 
     await this.loadSettings();
@@ -1315,14 +1017,6 @@ export default class SnipdPlugin extends Plugin {
       name: 'Sync now',
       callback: () => {
         void this.syncSnipd();
-      }
-    });
-
-    this.addCommand({
-      id: 'snipd-open-base',
-      name: 'Open base file',
-      callback: () => {
-        void this.openBaseFile();
       }
     });
 
