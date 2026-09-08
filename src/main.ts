@@ -20,11 +20,6 @@ import {
   FetchExportMetadataResponse,
 } from './types';
 
-function isValidAdditionalProperties(
-  props: Array<{ name: string; template: string; displayName?: string }> | null
-): props is Array<{ name: string; template: string; displayName?: string }> {
-  return Array.isArray(props) && props.length > 0 && props.every((p) => !!p.name?.trim() && !!p.template?.trim());
-}
 import { generateEpisodeFileName, createDirForFile, isDev, debugLog } from './utils';
 import { sanitizeFileName } from './sanitize_file_name';
 import { SnipdSettingModal } from './settings_modal';
@@ -414,7 +409,6 @@ export default class SnipdPlugin extends Plugin {
     episode_ids: string[];
     episode_template?: string;
     snip_template?: string;
-    additional_properties?: Array<{ name: string; template: string; displayName?: string; }>;
     updated_after?: string;
     only_edited_snips?: boolean;
   } {
@@ -422,7 +416,6 @@ export default class SnipdPlugin extends Plugin {
       episode_ids: string[];
       episode_template?: string;
       snip_template?: string;
-      additional_properties?: Array<{ name: string; template: string; displayName?: string; }>;
       updated_after?: string;
       only_edited_snips?: boolean;
     } = {
@@ -430,24 +423,15 @@ export default class SnipdPlugin extends Plugin {
       episode_template: this.settings.episodeTemplate ?? DEFAULT_EPISODE_TEMPLATE,
       snip_template: this.settings.snipTemplate ?? DEFAULT_SNIP_TEMPLATE,
     };
-    
-    const additionalProps = this.settings.additionalProperties;
-    if (isValidAdditionalProperties(additionalProps)) {
-      requestBody.additional_properties = additionalProps.map((prop) => ({
-        name: prop.name.trim(),
-        template: prop.template.trim(),
-        ...(prop.displayName?.trim() ? { displayName: prop.displayName.trim() } : {}),
-      }));
-    }
-    
+
     if (this.settings.last_updated_after) {
       requestBody.updated_after = this.settings.last_updated_after;
     }
-    
+
     if (this.settings.onlyEditedSnips) {
       requestBody.only_edited_snips = true;
     }
-    
+
     return requestBody;
   }
 
@@ -701,23 +685,13 @@ export default class SnipdPlugin extends Plugin {
           episode_ids: string[];
           episode_template: string;
           snip_template: string;
-          additional_properties?: Array<{ name: string; template: string; displayName?: string; }>;
           only_edited_snips?: boolean;
         } = {
           episode_ids: episodeIds,
           episode_template: this.settings.episodeTemplate ?? DEFAULT_EPISODE_TEMPLATE,
           snip_template: this.settings.snipTemplate ?? DEFAULT_SNIP_TEMPLATE,
         };
-        
-        const additionalProps = this.settings.additionalProperties;
-        if (isValidAdditionalProperties(additionalProps)) {
-          exportRequestBody.additional_properties = additionalProps.map((prop) => ({
-            name: prop.name.trim(),
-            template: prop.template.trim(),
-            ...(prop.displayName?.trim() ? { displayName: prop.displayName.trim() } : {}),
-          }));
-        }
-        
+
         if (this.settings.onlyEditedSnips) {
           exportRequestBody.only_edited_snips = true;
         }

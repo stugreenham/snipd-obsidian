@@ -22,7 +22,6 @@ export interface SnipdPluginSettings {
   episodeTemplate: string | null;
   snipTemplate: string | null;
   episodeFileNameTemplate: string | null;
-  additionalProperties: Array<{ name: string; template: string; displayName?: string; }> | null;
   saveDebugZips: boolean;
   onlyEditedSnips: boolean;
 }
@@ -92,7 +91,6 @@ export const DEFAULT_SETTINGS: SnipdPluginSettings = {
   episodeTemplate: null,
   snipTemplate: null,
   episodeFileNameTemplate: null,
-  additionalProperties: null,
 };
 
 export interface MetadataJson {
