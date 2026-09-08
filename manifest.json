@@ -1,7 +1,7 @@
 {
   "id": "snipd-fork",
   "name": "Snipd (fork)",
-  "version": "1.2.21-fork.3",
+  "version": "1.2.21-fork.4",
   "minAppVersion": "1.2.3",
   "description": "Personal fork of the Snipd Obsidian plugin with custom episode formatting.",
   "author": "Stu Greenham",
