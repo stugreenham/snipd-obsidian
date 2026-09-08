@@ -841,12 +841,13 @@ export default class SnipdPlugin extends Plugin {
       const showId = episodeData?.show_id;
       const showName = showId && showsData[showId] ? showsData[showId].name : 'Unknown Show';
 
+      const totalSnipCount = episodeData?.total_snip_count ?? episodeData?.updated_snip_count;
       await this.syncFile(
         stripApiFrontmatter(fileData.full),
         fileData.append,
         sanitizeFileName(episodeName),
         sanitizeFileName(showName),
-        episodeData?.total_snip_count
+        totalSnipCount
       );
       
       if (episodeData?.updated_snip_count) {
@@ -887,7 +888,7 @@ export default class SnipdPlugin extends Plugin {
     showName: string,
     totalSnipCount?: number
   ) {
-    const targetPath = normalizePath(`${this.settings.snipdDir}/Data/${showName}/${entityName}.md`);
+    const targetPath = normalizePath(`${this.settings.snipdDir}/${showName}/${entityName}.md`);
 
     await createDirForFile(targetPath, this.fs);
 
@@ -927,28 +928,25 @@ export default class SnipdPlugin extends Plugin {
     await this.saveSettings();
   }
 
+  private get metadataFilePath(): string {
+    return normalizePath(`${this.settings.snipdDir}/.current_export_metadata.json`);
+  }
+
   async saveMetadataToFile(metadata: FetchExportMetadataResponse): Promise<void> {
-    const metadataPath = 'current_export_metadata.json';
-    const metadataContent = JSON.stringify(metadata, null, 2);
-    await this.app.vault.adapter.write(metadataPath, metadataContent);
+    await createDirForFile(this.metadataFilePath, this.app.vault.adapter);
+    await this.app.vault.adapter.write(this.metadataFilePath, JSON.stringify(metadata, null, 2));
   }
 
   async loadMetadataFromFile(): Promise<FetchExportMetadataResponse | null> {
-    const metadataPath = 'current_export_metadata.json';
-    const exists = await this.app.vault.adapter.exists(metadataPath);
-    if (!exists) {
-      return null;
-    }
-    const content = await this.app.vault.adapter.read(metadataPath);
+    const exists = await this.app.vault.adapter.exists(this.metadataFilePath);
+    if (!exists) return null;
+    const content = await this.app.vault.adapter.read(this.metadataFilePath);
     return JSON.parse(content) as FetchExportMetadataResponse;
   }
 
   async deleteMetadataFile(): Promise<void> {
-    const metadataPath = 'current_export_metadata.json';
-    const exists = await this.app.vault.adapter.exists(metadataPath);
-    if (exists) {
-      await this.app.vault.adapter.remove(metadataPath);
-    }
+    const exists = await this.app.vault.adapter.exists(this.metadataFilePath);
+    if (exists) await this.app.vault.adapter.remove(this.metadataFilePath);
   }
 
   configureSchedule() {
