@@ -50,6 +50,12 @@ export function generateEpisodeFileName(
   return sanitizeFileName(result);
 }
 
+export function stripApiFrontmatter(content: string): string {
+  const match = content.match(/^---\r?\n[\s\S]*?\n---\r?\n?/);
+  if (!match) return content;
+  return content.slice(match[0].length);
+}
+
 export async function createDirForFile(filePath: string, fs: DataAdapter): Promise<void> {
   const dirPath = filePath.replace(/\/+$/, '').replace(/^(.+)\/[^/]*?$/, '$1');
   const exists = await fs.exists(dirPath);

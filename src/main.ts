@@ -20,7 +20,7 @@ import {
   FetchExportMetadataResponse,
 } from './types';
 
-import { generateEpisodeFileName, createDirForFile, isDev, debugLog } from './utils';
+import { generateEpisodeFileName, createDirForFile, stripApiFrontmatter, isDev, debugLog } from './utils';
 import { sanitizeFileName } from './sanitize_file_name';
 import { SnipdSettingModal } from './settings_modal';
 import { SecureStorage } from './secure_storage';
@@ -842,7 +842,7 @@ export default class SnipdPlugin extends Plugin {
       const showName = showId && showsData[showId] ? showsData[showId].name : 'Unknown Show';
 
       await this.syncFile(
-        fileData.full,
+        stripApiFrontmatter(fileData.full),
         fileData.append,
         sanitizeFileName(episodeName),
         sanitizeFileName(showName),

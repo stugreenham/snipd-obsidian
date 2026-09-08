@@ -26,26 +26,26 @@ export interface SnipdPluginSettings {
   onlyEditedSnips: boolean;
 }
 
-export const DEFAULT_EPISODE_TEMPLATE = `# {{episode_title}}
+export const DEFAULT_EPISODE_TEMPLATE = `---
+episode_title: "{{episode_title}}"
+show_title: "{{show_title}}"
+show_author: "{{show_author}}"
+guests: {{guests}}
+episode_publish_date: {{episode_publish_date}}
+mentioned_books: {{mentioned_books}}
+episode_duration: {{episode_duration}}
+episode_url: "{{episode_url}}"
+show_url: "{{show_url}}"
+episode_export_date: {{episode_export_date}}
+snips_count: {{snips_count}}
+from_snipd: true
+---
+
+# {{episode_title}}
 
 {{episode_image}}
 
-## Episode metadata
-- Episode title: {{episode_title}}
-- Show: {{show_title}}
-- Owner / Host: {{show_author}}
-- Guests: {{guests}}
-- Episode publish date: {{episode_publish_date}}
-- Episode AI description: {{episode_ai_description}}
-- Mentioned books: {{mentioned_books}}
-- Duration: {{episode_duration}}
-- Episode URL: [Open in Snipd]({{episode_url}})
-- Show URL: [Open in Snipd]({{show_url}})
-- Export date: {{episode_export_date}}
-
-{{snips_section}}[[## Snips]]
-
-Created with [Snipd](https://www.snipd.com) | Highlight & Take Notes from Podcasts`;
+{{snips_section}}[[## Snips]]`;
 
 export const DEFAULT_SNIP_TEMPLATE = `### {{snip_favorite_star}} [{{snip_title}}]({{snip_url}}) {{snip_tags}}
 
