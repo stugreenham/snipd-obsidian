@@ -905,19 +905,19 @@ export default class SnipdPlugin extends Plugin {
         if (!isAppendOnlyFile) {
           this.settings.appendOnlyFiles[targetPath] = true;
         }
-        
+
         if (appendContent) {
           contentToWrite = existingContent.trimEnd() + "\n" + appendContent;
-          
-          if (totalSnipCount !== undefined) {
-            contentToWrite = this.updateSnipsCountInFrontmatter(contentToWrite, totalSnipCount);
-          }
         } else {
           contentToWrite = fullContent;
         }
       }
     } else {
       contentToWrite = fullContent;
+    }
+
+    if (totalSnipCount !== undefined) {
+      contentToWrite = this.updateSnipsCountInFrontmatter(contentToWrite, totalSnipCount);
     }
 
     await this.fs.write(targetPath, contentToWrite);

@@ -37,7 +37,7 @@ episode_duration: {{episode_duration}}
 episode_url: "{{episode_url}}"
 show_url: "{{show_url}}"
 episode_export_date: {{episode_export_date}}
-snips_count: {{snips_count}}
+snips_count: 0
 from_snipd: true
 ---
 
