@@ -1,60 +1,30 @@
-# Snipd Official 🎙️
+# Snipd (personal fork) 🎙️
 
-The official [Snipd](https://www.snipd.com) plugin maintained by the Snipd team.  
+Personal fork of the [official Snipd Obsidian plugin](https://github.com/snipd-app/snipd-obsidian) by Stu Greenham.
 
-Lets you automatically sync all your podcast highlights (=snips) to your Obsidian Vault, including transcript, notes, ai summary and more.
+## Changes from upstream
 
-![obsidian-snipd-integration](assets/obsidian_integration_w_icons.png)
+- **Removed base view** — no `.base` files or Obsidian Bases integration synced to the vault
+- **Removed additional properties** — custom YAML frontmatter properties are now defined directly in the episode template
+- **Ribbon icon** now triggers a sync instead of opening the base view
+- Plugin ID changed to `snipd-fork` so it can coexist with the official plugin
 
-## Plugin Features
+## Manual installation
 
-- Automatically sync your snips to your Obsidian vault, including:
-  - Transcript
-  - AI-summary
-  - Your notes
-  - Link to snip
-  - Rich podcast metadata incl. image, title, publish date & more
-- Customize the formatting
-- Choose whether to only sync edited snips
-- Compatible with Obsidian Bases:
-  - Metadata as properties
-  - Two default Bases views out of the box
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/stugreenham/snipd-obsidian/releases/latest)
+2. Create a folder at `.obsidian/plugins/snipd-fork/` inside your vault
+3. Copy the three files into that folder
+4. Enable the plugin in Obsidian → Settings → Community plugins
 
-## About Snipd
-[Snipd](https://www.snipd.com) is an AI-powered podcast app that let's you highlight and take notes from podcasts just by tapping your headphones.  
+## Keeping up with upstream
 
-You can also chat with episodes, see all mentioned books, or generate summaries.  
-You can download it [here](https://www.snipd.com).
+```bash
+git fetch upstream
+git merge upstream/master
+```
 
-## Plugin Demo
+Resolve any conflicts, bump the version suffix (`fork.2`, `fork.3`, …), and push a new tag to release.
 
-![plugin-demo](assets/plugin_demo.gif)
+---
 
-
-## Plugin Setup
-
-1. Install & enable the plugin inside Obsidian's community plugin section
-2. Open the plugin settings
-3. Click on "Connect" and sign in with your Snipd account. If you have an issues connecting to your Snipd, please make sure you open the link in your native web browser, not in Obsidian's in-app browser.
-4. Optionally click "Test sync" to test the connection and output format
-5. Optionally customize your template
-6. Click "Start syncing" to start your first sync
-
-## Custom Formatting
-
-Inside the plugin's settings, go to "Custom formatting" and click "Configure":
-- **Episode filename template**: Customize how episode files are named
-- **Episode template**: Control how episode files are formatted
-- **Snip template**: Control how individual snips appear
-
-## Support & Feedback
-
-If you encounter any issues, have questions or want to pass along feature requests, please contact us via the in-app feedback button inside the Snipd mobile app.  
-You can find it in "You" -> Settings -> Feedback.
-
-
-**Note:** This plugin requires a Snipd account to access the API. You can create a free account inside the mobile app.  
-[Get the Snipd app](https://www.snipd.com)
-
-## We hope you like it! :)
-[![snipd-logo](assets/banner_take_notes_from_podcasts.png)](https://www.snipd.com)
+*Based on [snipd-app/snipd-obsidian](https://github.com/snipd-app/snipd-obsidian) — all core sync logic and the Snipd API integration are unchanged.*
